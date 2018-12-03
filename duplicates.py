@@ -8,11 +8,13 @@ from math import log10
 from collections import UserList
 import nltk
 import numpy as np
+import csv
 # nltk.download('punkt')
 
-jsonfile = 'googleapis-google-cloud-java-issues'  # format is username/repo
+name = 'googleapis-google-cloud-java'
+jsonfile = name + '-issues.json'
 
-with open(jsonfile + '.json', 'r', encoding='utf8') as file:
+with open(jsonfile, 'r', encoding='utf8') as file:
     r = json.load(file)
 
 
@@ -37,7 +39,7 @@ class GitList(UserList):
             return self.data.__getitem__(i)
 
 
-help(GitList)
+# help(GitList)
 r = GitList(r)
 len(r)
 
@@ -70,7 +72,7 @@ for issue in r:
     md_urls = pattern_md.findall(issue['body'])
 
     # change in 'urls' all markdown links to the correct ones
-    # WARNING: we assume here that each link appears only once in the text.
+    # WARNING: we assume here that each link appears only once in the text
     for mdu in md_urls:
         for n, url in enumerate(urls):
             if url.find(mdu) != -1:
@@ -146,18 +148,22 @@ for i, vec in enumerate(av):
     sc[i, i+1:] = np.einsum('ij, j-> i', av[i+1:], vec) / (normav[i] * normav[i+1:])
 cond = np.argwhere(sc > 0.8)
 
-# (number 1, number 2, state 1, state 2, probability)
+# (number 1, number 2, state 1, state 2, degree of similarity)
 sim = []
 for i,j in cond:
     sim.append((r[i]['number'], r[j]['number'],
                 r[i]['state'], r[j]['state'], float('%.2f' % (sc[i,j]))))
 sim.sort(key=lambda i: i[-1], reverse=True)
 
-for i in sim:
-    print(i)
-
-print('Empty issues:')
-print(empty_number)
+# for i in sim:
+#     print(i)
 
 # print(r.getbynumber(sim[-1][0])['body'])
 # print(r.getbynumber(sim[-1][1])['body'])
+
+csvfile = name + '-similar.csv'
+with open(csvfile, 'w', newline='') as file:
+    writer = csv.writer(file, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    writer.writerow(('Issue#1', 'Issue#2', 'State#1', 'State#2', 'Degree of similarity'))
+    for line in sim:
+        writer.writerow(line)
