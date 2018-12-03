@@ -9,6 +9,9 @@ import requests
 
 # If you don't use login and password, GitHub's API v3 allows only 60
 # requests per hour from one IP address.
+# WARNING: if you use two-factor authentication you need to create personal
+# access token, and use it in the password field.
+# https://github.com/settings/tokens
 GITHUB_USER = ''
 GITHUB_PASSWORD = ''
 REPO = 'googleapis/google-cloud-java'  # format is username/repo
