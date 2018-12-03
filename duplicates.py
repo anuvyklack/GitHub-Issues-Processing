@@ -4,23 +4,42 @@
 import json
 import re
 import string
+from math import log10
+from collections import UserList
 import nltk
 import numpy as np
-from math import log10
-nltk.download('punkt')
+# nltk.download('punkt')
 
-jsonfile = 'googleapis-google-cloud-java-issues.json'  # format is username/repo
+jsonfile = 'googleapis-google-cloud-java-issues'  # format is username/repo
 
-with open(jsonfile, 'r', encoding='utf8') as file:
+with open(jsonfile + '.json', 'r', encoding='utf8') as file:
     r = json.load(file)
+
+
+class GitList(UserList):
+    """List for GitHub Issues"""
+
+    def getbynumber(self, n):
+        '''Return the issue (list element) with given key "number" value.'''
+        for i, issue in enumerate(self.data):
+            if issue['number'] == n:
+                return self.data[i]
+        raise ValueError('no such issue with number {}'.format(n))
+
+    def __getitem__(self, i):
+        '''
+        if y is int or slice: x[y] <==> x.__getitem__(y)
+        if y is string: x['y'] <==> x.getbynumber(y)
+        '''
+        if type(i) is str:
+            return self.getbynumber(int(i))
+        else:
+            return self.data.__getitem__(i)
+
+
+help(GitList)
+r = GitList(r)
 len(r)
-
-
-def getbynumber(n, r):
-    for i, issue in enumerate(r):
-        if issue['number'] == n:
-            break
-    return i
 
 
 # %% ------------------------------------------------------------------
@@ -51,7 +70,7 @@ for issue in r:
     md_urls = pattern_md.findall(issue['body'])
 
     # change in 'urls' all markdown links to the correct ones
-    # WARNING: we assume here that each link appears in the text only once
+    # WARNING: we assume here that each link appears only once in the text.
     for mdu in md_urls:
         for n, url in enumerate(urls):
             if url.find(mdu) != -1:
@@ -71,7 +90,7 @@ for issue in r:
     issue['tokens'] = nltk.word_tokenize(issue['tokens'])
 
 # %% ------------------------------------------------------------------
-'''Find all empty issues and remove the from r'''
+'''Find all empty issues and remove them from r'''
 empty_number = []
 for issue in reversed(r):
     if len(issue['tokens']) == 0:
@@ -80,6 +99,7 @@ for issue in reversed(r):
 
 # %% ------------------------------------------------------------------
 df = {}  # document frequency
+# tf -- is text frequency for each document
 for issue in r:
     if issue.get('tf') is None: issue['tf'] = {}
     tokens = {t for t in issue['tokens'] if not t.isdigit()}
@@ -90,12 +110,11 @@ for issue in r:
         else:
             df[token] += 1
 
+
+# %% ------------------------------------------------------------------
 # We sort out words that occur only once because they do not make any
 # impact into the scalar product.
-# TODO: there are appers issues consists only from one unic word.
-# For them norm of the vetor is zero.
-# words = [k for k,v in df.items() if v > 1]
-words = [k for k,v in df.items()]
+words = [k for k,v in df.items() if v > 1]
 words.sort()
 df = {k: df[k] for k in words}
 
@@ -114,13 +133,20 @@ av = av * idf
 # calculate norm of each vector
 normav = np.sqrt(np.einsum('ij, ij-> i', av, av))
 
+# Delete all issues, that consists only from 1 unice word. Their norm is zero.
+z = np.where(normav == 0)
+av = np.delete(av, z, axis=0)
+for i in z[0]:
+    del r[i]
+normav = np.delete(normav, z)
+
 # scalar product
 sc = np.zeros((len(r), len(r)))
 for i, vec in enumerate(av):
     sc[i, i+1:] = np.einsum('ij, j-> i', av[i+1:], vec) / (normav[i] * normav[i+1:])
 cond = np.argwhere(sc > 0.8)
 
-# number, number, probability
+# (number 1, number 2, state 1, state 2, probability)
 sim = []
 for i,j in cond:
     sim.append((r[i]['number'], r[j]['number'],
@@ -130,5 +156,8 @@ sim.sort(key=lambda i: i[-1], reverse=True)
 for i in sim:
     print(i)
 
-# print(r[getbynumber(sim[-1][0], r)]['body'])
-# print(r[getbynumber(sim[-1][1], r)]['body'])
+print('Empty issues:')
+print(empty_number)
+
+# print(r.getbynumber(sim[-1][0])['body'])
+# print(r.getbynumber(sim[-1][1])['body'])
