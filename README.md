@@ -5,3 +5,7 @@ The tf-idf is used to calculate the weight of each term. The degree of similarit
 Instruction:
 * First run gitHub-collect-issues.py script. Use your GitHub login/password, or otherwise GitHub API will block you.
 * Then run duplicates.py script.
+
+### WARNING:
+if you use two-factor authentication you need to create personal access token, and use it in the password field.
+https://github.com/settings/tokens
