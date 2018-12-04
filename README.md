@@ -7,5 +7,5 @@ Instruction:
 * Then run duplicates.py script.
 
 ### WARNING:
-if you use two-factor authentication you need to create personal access token, and use it in the password field.
+If you use two-factor authentication you need to create personal access token, and use it in the password field.
 https://github.com/settings/tokens
