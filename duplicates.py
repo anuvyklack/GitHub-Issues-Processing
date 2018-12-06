@@ -5,7 +5,7 @@ import json
 import re
 import string
 from math import log10
-from collections import UserList
+from collections import UserList, Counter
 import numpy as np
 import csv
 
@@ -58,12 +58,14 @@ class GitList(UserList):
             issue['tokens'] = issue['body']
             for url in urls:
                 issue['tokens'] = issue['tokens'].replace(url, '')
-            # remove all special symbols, punctuation and convert to lowercase
-            issue['tokens'] = issue['tokens'].translate(trantab).lower()
-            # substitute multiple whitespace with single whitespace
 
+            # remove all special symbols, punctuation and convert to lowercase
+            # issue['tokens'] = issue['tokens'].translate(trantab).lower()
+            # substitute multiple whitespace with single whitespace
             # issue['tokens'] = re.sub(' +', ' ', issue['tokens'])
-            issue['tokens'] = issue['tokens'].split()
+            # issue['tokens'] = issue['tokens'].split()
+
+            issue['tokens'] = re.sub('[^a-zA-Z]', ' ', issue['tokens']).lower().split()
 
     def getbynumber(self, n):
         '''Return the issue (list element) with given key "number" value.'''
@@ -102,17 +104,13 @@ if __name__ == '__main__':
             r.remove(issue)
 
     # %% ------------------------------------------------------------------
-    df = {}  # document frequency
-    # tf -- is text frequency for each document
+    # df -- document frequency
+    # tf -- text frequency for each document
+    words = []
     for issue in r:
-        if issue.get('tf') is None: issue['tf'] = {}
-        tokens = {t for t in issue['tokens'] if not t.isdigit()}
-        for token in tokens:
-            issue['tf'][token] = issue['tokens'].count(token)
-            if token not in df:
-                df[token] = 1
-            else:
-                df[token] += 1
+        words.extend(issue['tokens'])
+        issue['tf'] = Counter(issue['tokens'])
+    df = Counter(words)
 
     # %% ------------------------------------------------------------------
     # We sort out words that occur only once because they do not make any
@@ -120,7 +118,7 @@ if __name__ == '__main__':
     words = [k for k,v in df.items()]
     # words = [k for k,v in df.items() if v > 1]
     words.sort()
-    df = {k: df[k] for k in words}
+    # df = {k: df[k] for k in words}
 
     # most_common = {k: v for k,v in sorted(df.items(), key=lambda d: d[1], reverse=True)}
     # less_common = {k: v for k,v in sorted(df.items(), key=lambda d: d[1])}
@@ -157,17 +155,15 @@ if __name__ == '__main__':
                     r[i]['state'], r[j]['state'], float('%.2f' % (sc[i,j]))))
     sim.sort(key=lambda i: i[-1], reverse=True)
 
-    # for i in sim:
-    #     print(i)
+    for i in sim:
+        if 'open' in i:
+            print(i)
 
     # print(r.getbynumber(sim[-1][0])['body'])
     # print(r.getbynumber(sim[-1][1])['body'])
 
     # print(r['3626']['body'])
     # print(r['3626']['body'])
-    #
-    # a = r['3626']['tokens']
-    # b = r['3295']['tokens']
 
     # %% ------------------------------------------------------------------
     csvfile = name + '-similar.csv'
