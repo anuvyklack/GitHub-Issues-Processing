@@ -15,7 +15,7 @@ class GitList(UserList):
 
     def __init__(self, initlist=None):
         self.data = UserList(initlist)
-        if r:
+        if initlist:
             self.__initialazer()
 
     def __initialazer(self):
