@@ -20,27 +20,19 @@ class GitList(UserList):
 
     def __initialazer(self):
         # pattern for links
-        url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+        url_regex = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
         pattern = re.compile(url_regex)
 
         # pattern for links in markdown ambient
         # http:// or https:// followed by anything but a closing paren
-        short_url_regex = 'http[s]?://[^)]+'
+        short_url_regex = r'http[s]?://[^)]+'
         # HACK: if use url_regex here, re.findall function just hanging up the python
         # interpreter for some strings (for example, issue #3924 in
         # 'googleapis/google-cloud-java')
-        pattern_md = re.compile('\[.*]\(\s*({0})\s*\)'.format(short_url_regex))
-
-        # translation table to removing special symbols and punctuation for
-        # str.translate() method
-        special_char = '\n\a\b\f\r\t\v'
-        # trantab = ''.maketrans(special_char, ' ' * len(special_char), string.punctuation)
-        trantab = ''.maketrans(special_char + string.punctuation,
-                               ' ' * (len(special_char) + len(string.punctuation)))
+        pattern_md = re.compile(r'\[.*]\(\s*({0})\s*\)'.format(short_url_regex))
 
         # pattern for code
-        # pattern_code = re.compile('[a-zA-Z]+[0-9\(\)\$\.\:\[\]]+[a-zA-Z0-9\(\)\$\.\:\[\]]+')
-        pattern_code = re.compile('[a-zA-Z]+[0-9\$\.\:]+[a-zA-Z0-9\$\.\:]+')
+        pattern_code = re.compile(r'([a-zA-Z]+[0-9\$\.\:]+[a-zA-Z]+)')
 
         for issue in self.data:
             # find all links, but for links in markdown ambient also takes last
@@ -63,18 +55,16 @@ class GitList(UserList):
             for url in urls:
                 issue['tokens'] = issue['tokens'].replace(url, '')
 
-            # remove all special symbols, punctuation and convert to lowercase
-            # issue['tokens'] = issue['tokens'].translate(trantab).lower()
-            # substitute multiple whitespace with single whitespace
-            # issue['tokens'] = re.sub(' +', ' ', issue['tokens'])
-            # issue['tokens'] = issue['tokens'].split()
+            # issue['tokens'] = issue['tokens'].lower()
 
-            code = pattern_code.findall(issue['tokens'])
-            for line in code:
-                issue['tokens'] = issue['tokens'].replace(line, '')
+            issue['code'] = pattern_code.findall(issue['tokens'])
+            issue['tokens'] = pattern_code.split(issue['tokens'])
+            for n, token in enumerate(issue['tokens']):
+                if token not in issue['code']:
+                    issue['tokens'][n] = re.sub('[^a-zA-Z]', ' ', token).lower()
 
-            issue['tokens'] = re.sub('[^a-zA-Z]', ' ', issue['tokens']).lower().split()
-            issue['tokens'].extend(code)
+            issue['tokens'] = ' '.join(issue['tokens']).split()
+
 
     def getbynumber(self, n):
         '''Return the issue (list element) with given key "number" value.'''
@@ -171,12 +161,6 @@ if __name__ == '__main__':
     for i in sim:
         if 'open' in i:
             print(i)
-
-    # print(r['3626']['body'])
-    # print(r['3295']['body'])
-
-    # r['3626']['tokens']
-    # r['3295']['tokens']
 
     # %% ------------------------------------------------------------------
     csvfile = name + '-similar.csv'
