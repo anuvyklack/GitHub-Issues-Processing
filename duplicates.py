@@ -14,7 +14,7 @@ class GitList(UserList):
     """List for GitHub Issues"""
 
     def __init__(self, initlist=None):
-        self.data = UserList(initlist)
+        super().__init__(initlist)
         if initlist:
             self.__initialazer()
 
@@ -38,6 +38,10 @@ class GitList(UserList):
         trantab = ''.maketrans(special_char + string.punctuation,
                                ' ' * (len(special_char) + len(string.punctuation)))
 
+        # pattern for code
+        # pattern_code = re.compile('[a-zA-Z]+[0-9\(\)\$\.\:\[\]]+[a-zA-Z0-9\(\)\$\.\:\[\]]+')
+        pattern_code = re.compile('[a-zA-Z]+[0-9\$\.\:]+[a-zA-Z0-9\$\.\:]+')
+
         for issue in self.data:
             # find all links, but for links in markdown ambient also takes last
             # round bracket and punctuation after it
@@ -55,7 +59,7 @@ class GitList(UserList):
             issue['urls_in_body'] = urls
 
             # delete all urls from the issue body
-            issue['tokens'] = issue['body']
+            issue['tokens'] = issue['body']  # copy string
             for url in urls:
                 issue['tokens'] = issue['tokens'].replace(url, '')
 
@@ -65,7 +69,12 @@ class GitList(UserList):
             # issue['tokens'] = re.sub(' +', ' ', issue['tokens'])
             # issue['tokens'] = issue['tokens'].split()
 
+            code = pattern_code.findall(issue['tokens'])
+            for line in code:
+                issue['tokens'] = issue['tokens'].replace(line, '')
+
             issue['tokens'] = re.sub('[^a-zA-Z]', ' ', issue['tokens']).lower().split()
+            issue['tokens'].extend(code)
 
     def getbynumber(self, n):
         '''Return the issue (list element) with given key "number" value.'''
@@ -84,8 +93,9 @@ class GitList(UserList):
         else:
             return self.data.__getitem__(i)
 
-
 # help(GitList)
+
+
 # %% ----------------------------------------------------------------
 if __name__ == '__main__':
 
@@ -94,6 +104,12 @@ if __name__ == '__main__':
 
     with open(jsonfile, 'r', encoding='utf8') as file:
         r = GitList(json.load(file))
+
+    # print(r['3626']['body'])
+    # print(r['3295']['body'])
+
+    # r['3626']['tokens']
+    # r['3295']['tokens']
 
     # %% ------------------------------------------------------------------
     '''Find all empty issues and remove them from r'''
@@ -115,13 +131,10 @@ if __name__ == '__main__':
     # %% ------------------------------------------------------------------
     # We sort out words that occur only once because they do not make any
     # impact into the scalar product.
-    words = [k for k,v in df.items()]
+    words = list(df)
     # words = [k for k,v in df.items() if v > 1]
     words.sort()
     # df = {k: df[k] for k in words}
-
-    # most_common = {k: v for k,v in sorted(df.items(), key=lambda d: d[1], reverse=True)}
-    # less_common = {k: v for k,v in sorted(df.items(), key=lambda d: d[1])}
 
     # %% ------------------------------------------------------------------
     # array of vectors
@@ -159,11 +172,11 @@ if __name__ == '__main__':
         if 'open' in i:
             print(i)
 
-    # print(r.getbynumber(sim[-1][0])['body'])
-    # print(r.getbynumber(sim[-1][1])['body'])
+    # print(r['3626']['body'])
+    # print(r['3295']['body'])
 
-    # print(r['3626']['body'])
-    # print(r['3626']['body'])
+    # r['3626']['tokens']
+    # r['3295']['tokens']
 
     # %% ------------------------------------------------------------------
     csvfile = name + '-similar.csv'
