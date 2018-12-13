@@ -3,7 +3,6 @@
 '''
 import json
 import re
-import string
 from math import log10
 from collections import UserList, Counter
 import numpy as np
@@ -65,13 +64,12 @@ class GitList(UserList):
 
             issue['tokens'] = ' '.join(issue['tokens']).split()
 
-
     def getbynumber(self, n):
         '''Return the issue (list element) with given key "number" value.'''
         for i, issue in enumerate(self.data):
             if issue['number'] == n:
                 return self.data[i]
-        raise ValueError('no such issue with number {}'.format(n))
+        raise ValueError('No such issue with number {}'.format(n))
 
     def __getitem__(self, i):
         '''
@@ -95,13 +93,6 @@ if __name__ == '__main__':
     with open(jsonfile, 'r', encoding='utf8') as file:
         r = GitList(json.load(file))
 
-    # print(r['3626']['body'])
-    # print(r['3295']['body'])
-
-    # r['3626']['tokens']
-    # r['3295']['tokens']
-
-    # %% ------------------------------------------------------------------
     '''Find all empty issues and remove them from r'''
     empty_number = []
     for issue in reversed(r):
@@ -109,7 +100,6 @@ if __name__ == '__main__':
             empty_number.append(issue['number'])
             r.remove(issue)
 
-    # %% ------------------------------------------------------------------
     # df -- document frequency
     # tf -- text frequency for each document
     words = []
@@ -118,13 +108,11 @@ if __name__ == '__main__':
         issue['tf'] = Counter(issue['tokens'])
     df = Counter(words)
 
-    # %% ------------------------------------------------------------------
     # We sort out words that occur only once because they do not make any
     # impact into the scalar product.
     words = list(df)
     # words = [k for k,v in df.items() if v > 1]
     words.sort()
-    # df = {k: df[k] for k in words}
 
     # %% ------------------------------------------------------------------
     # array of vectors
@@ -149,23 +137,54 @@ if __name__ == '__main__':
     sc = np.zeros((len(r), len(r)))
     for i, vec in enumerate(av):
         sc[i, i+1:] = np.einsum('ij, j-> i', av[i+1:], vec) / (normav[i] * normav[i+1:])
-    cond = np.argwhere(sc > 0.8)
-
-    # (number 1, number 2, state 1, state 2, degree of similarity)
-    sim = []
-    for i,j in cond:
-        sim.append((r[i]['number'], r[j]['number'],
-                    r[i]['state'], r[j]['state'], float('%.2f' % (sc[i,j]))))
-    sim.sort(key=lambda i: i[-1], reverse=True)
-
-    for i in sim:
-        if 'open' in i:
-            print(i)
 
     # %% ------------------------------------------------------------------
+    cond = np.argwhere(sc > 0.8)
+    cond = [[float('%.2f' % (sc[i,j])), i, j] for i,j in cond]
+    # cond.sort(key=lambda i: i[-1], reverse=True)
+    cond.sort(reverse=True)
+
+    sim = []
+    while len(cond) != 0:
+        sim.append(cond[0])
+        del cond[0]
+        which_delete = []
+        for j, (d, one, two) in enumerate(cond):
+            if d != sim[-1][0]:
+                break
+            if one in sim[-1] and two not in sim[-1]:
+                sim[-1].append(two)
+                which_delete.append(j)
+            elif two in sim[-1] and one not in sim[-1]:
+                sim[-1].append(one)
+                which_delete.append(j)
+            elif one in sim[-1] and two in sim[-1]:
+                which_delete.append(j)
+
+        for i in reversed(which_delete):
+            del cond[i]
+
+    # %% ------------------------------------------------------------------
+    sim[0]
+
     csvfile = name + '-similar.csv'
     with open(csvfile, 'w', newline='') as file:
         writer = csv.writer(file, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(('Issue#1', 'Issue#2', 'State#1', 'State#2', 'Degree of similarity'))
+        writer.writerow(('Degree of similarity'))
+        writer.writerow(('Issues'))
+        writer.writerow(('States'))
+        writer.writerow('')
+
         for line in sim:
-            writer.writerow(line)
+            writer.writerow( [line[0]] )
+            writer.writerow(line[1:])
+            state = [r[i]['state'] for i in line[1:]]
+            writer.writerow(state)
+            writer.writerow('')
+
+    # %% ------------------------------------------------------------------
+    # print(r['3626']['body'])
+    # print(r['3295']['body'])
+
+    # r['3626']['tokens']
+    # r['3295']['tokens']
