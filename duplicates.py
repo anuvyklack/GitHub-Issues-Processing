@@ -175,18 +175,26 @@ if __name__ == '__main__':
             del cond[i]
 
     # %% ------------------------------------------------------------------
+    p = [i[0] for i in sim]
+    for i, line in enumerate(sim):
+        sim[i] = [r[j]['number'] for j in line[1:]]
+
+    for i in range(len(sim)):
+        sim[i].insert(0, p[i])
+
+    # %% ------------------------------------------------------------------
     csvfile = name + '-similar.csv'
     with open(csvfile, 'w', newline='') as file:
         writer = csv.writer(file, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(('Degree of similarity'))
-        writer.writerow(('Issues'))
-        writer.writerow(('States'))
+        writer.writerow(('Degree of similarity', ''))
+        writer.writerow(('Issues', ''))
+        writer.writerow(('States', ''))
         writer.writerow('')
 
         for line in sim:
             writer.writerow( [line[0]] )
             writer.writerow(line[1:])
-            state = [r[i]['state'] for i in line[1:]]
+            state = [r.getbynumber(i)['state'] for i in line[1:]]
             writer.writerow(state)
             writer.writerow('')
 
