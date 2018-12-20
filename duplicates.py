@@ -8,7 +8,7 @@ from collections import UserList, Counter
 import numpy as np
 import csv
 import spacy
-nlp = spacy.load('en')
+# nlp = spacy.load('en')
 
 
 class GitList(UserList):
@@ -154,34 +154,6 @@ if __name__ == '__main__':
     # cond.sort(key=lambda i: i[-1], reverse=True)
     cond.sort(reverse=True)
 
-    sim = []
-    while len(cond) != 0:
-        sim.append(cond[0])
-        del cond[0]
-        which_delete = []
-        for j, (d, one, two) in enumerate(cond):
-            if d != sim[-1][0]:
-                break
-            if one in sim[-1] and two not in sim[-1]:
-                sim[-1].append(two)
-                which_delete.append(j)
-            elif two in sim[-1] and one not in sim[-1]:
-                sim[-1].append(one)
-                which_delete.append(j)
-            elif one in sim[-1] and two in sim[-1]:
-                which_delete.append(j)
-
-        for i in reversed(which_delete):
-            del cond[i]
-
-    # %% ------------------------------------------------------------------
-    p = [i[0] for i in sim]
-    for i, line in enumerate(sim):
-        sim[i] = [r[j]['number'] for j in line[1:]]
-
-    for i in range(len(sim)):
-        sim[i].insert(0, p[i])
-
     # %% ------------------------------------------------------------------
     csvfile = name + '-similar.csv'
     with open(csvfile, 'w', newline='') as file:
@@ -191,7 +163,7 @@ if __name__ == '__main__':
         writer.writerow(('States', ''))
         writer.writerow('')
 
-        for line in sim:
+        for line in cond:
             writer.writerow( [line[0]] )
             writer.writerow(line[1:])
             state = [r.getbynumber(i)['state'] for i in line[1:]]
