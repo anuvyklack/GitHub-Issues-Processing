@@ -125,6 +125,7 @@ if __name__ == '__main__':
     words.sort()
 
     # %% ------------------------------------------------------------------
+    '''Calculate simmilarity'''
     # array of vectors
     av = np.empty((len(r), len(words)))
     idf = np.array([log10(len(r) / df[k]) for k in words])
@@ -147,14 +148,70 @@ if __name__ == '__main__':
     sc = np.zeros((len(r), len(r)))
     for i, vec in enumerate(av):
         sc[i, i+1:] = np.einsum('ij, j-> i', av[i+1:], vec) / (normav[i] * normav[i+1:])
+    sc = np.around(sc, decimals=2)
 
     # %% ------------------------------------------------------------------
-    cond = np.argwhere(sc > 0.8)
-    cond = [[float('%.2f' % (sc[i,j])), i, j] for i,j in cond]
-    # cond.sort(key=lambda i: i[-1], reverse=True)
-    cond.sort(reverse=True)
+    '''Grouping'''
+    sim = []
+    for n in np.around(np.arange(80, 101) * 0.01, decimals=2):
+        cond = np.argwhere(sc == n)
+        cond = [[i,j] for i,j in cond]
+
+        sim.append([n])
+
+        while len(cond) != 0:
+            sim.append(cond.pop(0))
+            i = 0
+            find_them_all = []
+            which_delete = []
+            while len(cond) != 0:
+                one, two = cond[i]
+                remember = None
+                if one in sim[-1] and two not in sim[-1]:
+                    remember = two
+                    find_them_all.append(True)
+                    which_delete.append(i)
+                elif one not in sim[-1] and two in sim[-1]:
+                    remember = one
+                    find_them_all.append(True)
+                    which_delete.append(i)
+                elif one in sim[-1] and two in sim[-1]:
+                    which_delete.append(i)
+
+                if len(find_them_all) == len(sim[-1]):
+                    sim[-1].append(remember)
+                    for j in reversed(which_delete):
+                        del cond[j]
+                    i = 0
+                    find_them_all = []
+                    which_delete = []
+                    continue
+
+                if i == len(cond)-1:
+                    break
+                else:
+                    i += 1
+
+    i = 0
+    p = sim.pop(i)[0]
+    while i != len(sim):
+        if len(sim[i]) == 1:
+            p = sim.pop(i)[0]
+            continue
+        sim[i].insert(0, p)
+        i += 1
+
+    sim.reverse()
+
+    p = [i[0] for i in sim]
+    for i, line in enumerate(sim):
+        sim[i] = [r[j]['number'] for j in line[1:]]
+
+    for i in range(len(sim)):
+        sim[i].insert(0, p[i])
 
     # %% ------------------------------------------------------------------
+    '''Writting to CSV'''
     csvfile = name + '-similar.csv'
     with open(csvfile, 'w', newline='') as file:
         writer = csv.writer(file, delimiter=' ', quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -163,7 +220,7 @@ if __name__ == '__main__':
         writer.writerow(('States', ''))
         writer.writerow('')
 
-        for line in cond:
+        for line in sim:
             writer.writerow( [line[0]] )
             writer.writerow(line[1:])
             state = [r.getbynumber(i)['state'] for i in line[1:]]
