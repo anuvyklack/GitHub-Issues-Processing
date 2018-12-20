@@ -7,7 +7,7 @@ from math import log10
 from collections import UserList, Counter
 import numpy as np
 import csv
-import spacy
+# import spacy
 # nlp = spacy.load('en')
 
 
