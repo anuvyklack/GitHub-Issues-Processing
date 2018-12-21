@@ -21,49 +21,35 @@ class GitList(UserList):
 
     def __initialazer(self):
         # pattern for links
-        url_regex = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-        pattern = re.compile(url_regex)
+        url_regex = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*#\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+        pattern_url = re.compile(url_regex)
 
         # pattern for links in markdown ambient
         # http:// or https:// followed by anything but a closing paren
         short_url_regex = r'http[s]?://[^)]+'
-        # HACK: if use url_regex here, re.findall function just hanging up the python
-        # interpreter for some strings (for example, issue #3924 in
-        # 'googleapis/google-cloud-java')
-        pattern_md = re.compile(r'\[.*]\(\s*({0})\s*\)'.format(short_url_regex))
+        # HACK: if use url_regex here, re.findall function just hanging up the python interpreter
+        # for some strings (for example, issue #3924 in # 'googleapis/google-cloud-java')
+        pattern_md_url = re.compile(r'\[(?P<NAME>.*)]\(\s*({0})\s*\)'.format(short_url_regex))
 
-        '''Find code snippent inside string of GitHub Markdown'''
+        # find code snippents inside string of GitHub Markdown
         cond1 = '```.*?\r?\n(.+?)\r?\n```'
-        # return the caret (possible), new line — new line sequence in GitHub markdown.
         # Pattern: 4 whitespaces or tab, after that, any sets of any symbols, including none,
-        # except one before the newline character, plus this symbol also.
-        # Repeat the Pattern as many times as possible.
+        # after that any number of new line wymbols. Repeat the Pattern as many times as possible.
         cond2 = '(?:(?: {4}|\t).*(?:\r?\n)*)+'
         pattern_code_1 = re.compile(cond1, flags=re.DOTALL)
         pattern_code_2 = re.compile(cond2)
 
         for issue in self.data:
-            # find all links, but for links in markdown ambient also takes last
-            # round bracket and punctuation after it
-            urls = pattern.findall(issue['body'])
-            # find all links in markdown ambient
-            md_urls = pattern_md.findall(issue['body'])
-
-            # change in 'urls' all markdown links to the correct ones
-            # WARNING: we assume here that each link appears only once in the text
-            for mdu in md_urls:
-                for n, url in enumerate(urls):
-                    if url.find(mdu) != -1:
-                        urls[n] = mdu
-                        break
-            issue['urls_in_body'] = urls
-
-            # delete all urls from the issue body
-            issue['tokens'] = issue['body']  # copy string
-            for url in urls:
-                issue['tokens'] = issue['tokens'].replace(url, '')
-
             issue['doc'] = issue['body']
+
+            issue['urls'] = []
+            # find lisks in markdown ambient
+            issue['urls'].extend( [j for i,j in pattern_md_url.findall(issue['doc'])] )
+            issue['doc'] = re.sub(pattern_md_url, r'\g<NAME>', issue['doc'])
+            # find all other links
+            issue['urls'].extend(pattern_url.findall(issue['doc']))
+            issue['doc'] = re.sub(pattern_url, '', issue['doc'])
+
             issue['code'] = []
             for p in (pattern_code_1, pattern_code_2):
                 issue['code'].extend(p.findall(issue['doc']))
