@@ -11,6 +11,68 @@ import csv
 # nlp = spacy.load('en')
 
 
+def extract_markdown_links(text):
+    r'''
+    Find and extract all markdown links (links in markdown ambient).
+    Takes str and return list of urls and str without links.
+    Input:
+        'Random text \[GitHub\]\(http://github.com\)...'
+    Output:
+        ['http://github.com'], 'Random text GitHub...'
+    '''
+    # pattern for links in markdown ambient
+    # http:// or https:// followed by anything but a closing paren
+    short_url_regex = r'http[s]?://[^)]+'
+    # HACK: if use url_regex here, re.findall function just hanging up the python interpreter
+    # for some strings (for example, issue #3924 in # 'googleapis/google-cloud-java')
+    pattern_md_url = r'\[(?P<NAME>.*)]\(\s*({0})\s*\)'.format(short_url_regex)
+
+    urls = [j for i,j in re.findall(pattern_md_url, text)]
+    text = re.sub(pattern_md_url, r'\g<NAME>', text)
+    return urls, text
+
+
+def extract_links(text):
+    '''
+    Find and extract all links from the string.
+    Return list of links and str without links.
+
+    Input:
+        'Random text https://github.com continue text'
+    Output:
+        \[https://github.com\], 'Random text  continue text'
+    '''
+    # Pattern for links. Doesn't take a dot if there is any space character,
+    # new line of end of the string after it.
+    pattern_url = r'[ ]?(http[s]?://(?:[a-zA-Z]|[0-9]|[!*#$-\-\/-_\(\)]|\.(?!\s|$))+)'
+    # pattern_url = r'[ ]?(http[s]?://(?:[a-zA-Z]|[0-9]|[!*#$-\-\/-_\(\)]|(?:%[0-9a-fA-F]{2})|\.(?!\s|$))+)'
+    # pattern_url = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*#\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    # pattern_url = url_regex
+    urls = re.findall(pattern_url, text)
+    text = re.sub(pattern_url, '', text)
+    return urls, text
+
+
+def extract_github_code_snippets(text):
+    '''
+    Extract into list all GitHub code snippets from the string.
+    '''
+    # Find code snippents inside string of GitHub Markdown. Use with re.DOTALL flag
+    pattern1 = '```.*?\r?\n(.+?)\r?\n```'
+    # Pattern: 4 whitespaces or tab, after that, any sets of any symbols, including none,
+    # after that any number of new line wymbols. Repeat the Pattern as many times as possible.
+    pattern2 = '(?:(?: {4}|\t).*(?:\r?\n)*)+'
+
+    code = []
+    code.extend( re.findall(pattern1, text, flags=re.DOTALL) )
+    text = re.sub(pattern1,'', text)
+
+    code.extend( re.findall(pattern2, text) )
+    text = re.sub(pattern2, '', text)
+
+    return code, text
+
+
 class GitList(UserList):
     """List for GitHub Issues"""
 
@@ -20,40 +82,12 @@ class GitList(UserList):
             self.__initialazer()
 
     def __initialazer(self):
-        # pattern for links
-        url_regex = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*#\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-        pattern_url = re.compile(url_regex)
-
-        # pattern for links in markdown ambient
-        # http:// or https:// followed by anything but a closing paren
-        short_url_regex = r'http[s]?://[^)]+'
-        # HACK: if use url_regex here, re.findall function just hanging up the python interpreter
-        # for some strings (for example, issue #3924 in # 'googleapis/google-cloud-java')
-        pattern_md_url = re.compile(r'\[(?P<NAME>.*)]\(\s*({0})\s*\)'.format(short_url_regex))
-
-        # find code snippents inside string of GitHub Markdown
-        cond1 = '```.*?\r?\n(.+?)\r?\n```'
-        # Pattern: 4 whitespaces or tab, after that, any sets of any symbols, including none,
-        # after that any number of new line wymbols. Repeat the Pattern as many times as possible.
-        cond2 = '(?:(?: {4}|\t).*(?:\r?\n)*)+'
-        pattern_code_1 = re.compile(cond1, flags=re.DOTALL)
-        pattern_code_2 = re.compile(cond2)
-
         for issue in self.data:
             issue['doc'] = issue['body']
-
-            issue['urls'] = []
-            # find lisks in markdown ambient
-            issue['urls'].extend( [j for i,j in pattern_md_url.findall(issue['doc'])] )
-            issue['doc'] = re.sub(pattern_md_url, r'\g<NAME>', issue['doc'])
-            # find all other links
-            issue['urls'].extend(pattern_url.findall(issue['doc']))
-            issue['doc'] = re.sub(pattern_url, '', issue['doc'])
-
-            issue['code'] = []
-            for p in (pattern_code_1, pattern_code_2):
-                issue['code'].extend(p.findall(issue['doc']))
-                issue['doc'] = p.sub('', issue['doc'])
+            issue['urls'], issue['doc'] = extract_markdown_links(issue['doc'])
+            urls, issue['doc'] = extract_links(issue['doc'])
+            issue['urls'].extend(urls)
+            issue['code'], issue['doc'] = extract_github_code_snippets(issue['doc'])
 
             # issue['doc'] = nlp(issue['doc'])
 
