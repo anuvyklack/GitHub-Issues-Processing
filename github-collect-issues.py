@@ -3,17 +3,21 @@ Exports Issues from a specified repository to a JSON file
 Uses basic authentication (Github username + password) to retrieve Issues
 from a repository that username has access to. Supports Github API v3.
 """
+import os
 import json
 import requests
-
 
 # If you don't use login and password, GitHub's API v3 allows only 60
 # requests per hour from one IP address.
 # WARNING: if you use two-factor authentication you need to create personal
 # access token, and use it in the password field.
 # https://github.com/settings/tokens
-GITHUB_USER = ''
-GITHUB_PASSWORD = ''
+GITHUB_USER = 'anuvyklack'
+try:
+    # try to use Environment Variables if exist
+    GITHUB_PASSWORD = os.environ['GITHUB_PERSONAL_ACCESS_TOKEN']
+except KeyError:
+    GITHUB_PASSWORD = ''
 REPO = 'googleapis/google-cloud-java'  # format is username/repo
 # REPO = 'googleapis/google-cloud-python'  # format is username/repo
 issue_state = 'all'  # possible state values: open, close, all
@@ -42,6 +46,7 @@ def edit_issues(request, result):
 
 result = []
 r = requests.get(ISSUES_FOR_REPO_URL, auth=AUTH, params={'state':issue_state})
+r.url
 result = edit_issues(r, result)
 
 # more pages? examine the 'link' header returned
