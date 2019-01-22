@@ -31,9 +31,11 @@ def edit_issues(request, result):
     cond = ('html_url', 'number', 'title', 'labels', 'state', 'body')
     if r.status_code != 200:
         raise Exception(request.status_code)
+
     # On issues request GitHub's API v3 returns both issues and pull requests
     # in the response. We sort out pull requests by the pull_request key.
     issues = [i for i in request.json() if 'pull_request' not in i]
+
     for issue in issues:
         keys = list(issue.keys())
         for key in keys:
